@@ -1,0 +1,6 @@
+data/*
+!data/.gitkeep
+
+# Paczka serwerowa powstaje na żądanie — w repozytorium trzymamy tylko
+# windowsową, bo tę wysyła się osobom, które nie klonują repozytorium.
+paczki/

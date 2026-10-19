@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Karty Terenu Mobile</title>
+    <meta name="description" content="Mobilna aplikacja na Androida do obsługi kart terenu i przydziałów S-13 z pracą lokalną i synchronizacją z serwerem" />
+    <meta property="og:title" content="Karty Terenu Mobile" />
+    <meta property="og:description" content="Mobilna aplikacja na Androida do obsługi kart terenu i przydziałów S-13 z pracą lokalną i synchronizacją z serwerem" />
+    
+    <!-- Android / PWA mobile styling -->
+    <meta name="theme-color" content="#1e3a8a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="KartyTerenu" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  </head>
+  <body class="bg-slate-100 text-slate-900 min-h-screen selection:bg-blue-200 antialiased font-sans">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
