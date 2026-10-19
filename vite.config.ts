@@ -9,12 +9,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png', 'manifest.json'],
       manifest: {
         id: '/',
-        name: 'Karty Terenu Mobile',
-        short_name: 'KartyTerenu',
-        description: 'Mobilna aplikacja do kart terenu i przydziałów S-13 z pracą offline i synchronizacją z serwerem',
+        name: 'Karty Terenów',
+        short_name: 'KartyTerenów',
+        description: 'Mobilna aplikacja na telefon do obsługi kart terenu według druku S-12-P i przydziałów S-13 z pracą offline i synchronizacją z serwerem.',
         theme_color: '#1e3a8a',
         background_color: '#f8fafc',
         display: 'standalone',

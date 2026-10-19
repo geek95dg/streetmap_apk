@@ -103,26 +103,43 @@ export const PWAInstallButton: React.FC<{ compact?: boolean }> = ({ compact = fa
               </p>
             </div>
 
-            {/* Copy Link fallback */}
-            <div className="flex items-center gap-2 mb-4">
-              <input
-                type="text"
-                readOnly
-                value={currentUrl}
-                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-600 truncate"
-              />
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 shrink-0"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Skopiowano' : 'Kopiuj link'}</span>
-              </button>
+            {/* Download APK Section */}
+            <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-3.5 text-xs text-emerald-950 mb-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold flex items-center gap-1.5 text-emerald-900">
+                  <Download className="w-4 h-4 text-emerald-700" />
+                  Spakowany plik APK (Gotowy do pobrania):
+                </span>
+                <span className="text-[10px] bg-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
+                  240 KB
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-800">
+                Możesz pobrać plik APK bezpośrednio z repozytorium i zainstalować przez kabel USB.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <a
+                  href="/KartyTerenow.apk"
+                  download="KartyTerenow.apk"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 text-xs shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Pobierz KartyTerenow.apk</span>
+                </a>
+              </div>
+              <div className="pt-1.5 border-t border-emerald-200/80">
+                <span className="text-[10px] text-emerald-900 font-semibold block mb-1">
+                  Instalacja na podłączonym telefonie przez ADB:
+                </span>
+                <code className="block bg-emerald-950 text-emerald-300 p-2 rounded-lg text-[11px] font-mono select-all">
+                  adb install KartyTerenow.apk
+                </code>
+              </div>
             </div>
 
             <button
               onClick={() => setShowGuide(false)}
-              className="w-full rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-md hover:bg-blue-700"
+              className="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-md hover:bg-slate-800"
             >
               Zamknij okno
             </button>

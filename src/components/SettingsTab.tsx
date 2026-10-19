@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppSettings } from '../types';
 import { StorageService } from '../services/storage';
 import { SyncService } from '../services/syncService';
+import { NotificationService } from '../services/notificationService';
 import { PWAInstallButton } from './PWAInstallButton';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { 
   Server, Smartphone, Key, Lock, Shield, RefreshCw, 
   CheckCircle2, XCircle, HardDrive, Wifi, Info, Zap, 
-  Copy, Check, ChevronDown, ChevronUp, Code
+  Copy, Check, ChevronDown, ChevronUp, Code, Bell, BellRing, Clock, Download
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -27,6 +28,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ onRefresh }) => {
   const [mapSource, setMapSource] = useState(settings.mapSource);
   const [geoapifyKey, setGeoapifyKey] = useState(settings.geoapifyKey);
 
+  // Push notifications state
+  const [notificationsEnabled, setNotificationsEnabled] = useState(settings.notificationsEnabled ?? true);
+  const [thresholdMonths, setThresholdMonths] = useState(settings.notificationThresholdMonths || 4);
+  const [notifPermission, setNotifPermission] = useState<string>(NotificationService.getPermission());
+  const [testNotifMessage, setTestNotifMessage] = useState<string | null>(null);
+  const [overdueCount, setOverdueCount] = useState(0);
+
   // Connection testing state
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; latencyMs?: number; statusCode?: number } | null>(null);
@@ -42,6 +50,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ onRefresh }) => {
   const { isInstalled } = usePWAInstall();
   const queue = StorageService.getSyncQueue();
 
+  useEffect(() => {
+    setOverdueCount(NotificationService.getOverdueTerritories(thresholdMonths).length);
+    setNotifPermission(NotificationService.getPermission());
+  }, [thresholdMonths]);
+
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = StorageService.saveSettings({
@@ -54,10 +67,40 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ onRefresh }) => {
       defaultCity: defaultCity.trim(),
       mapSource,
       geoapifyKey: geoapifyKey.trim(),
+      notificationsEnabled,
+      notificationThresholdMonths: thresholdMonths,
     });
     setSettings(updated);
-    alert('Ustawienia i dane autoryzacji zostały trwale zapisane na telefonie!');
+    alert('Ustawienia i powiadomienia zostały trwale zapisane na telefonie!');
     onRefresh();
+  };
+
+  const handleToggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      const granted = await NotificationService.requestPermission();
+      setNotifPermission(NotificationService.getPermission());
+      if (granted) {
+        setNotificationsEnabled(true);
+        StorageService.saveSettings({ notificationsEnabled: true });
+      } else {
+        alert('Uprawnienia do powiadomień zostały odrzucone w przeglądarce telefonu. Zezwól na nie w ustawieniach witryny.');
+      }
+    } else {
+      setNotificationsEnabled(false);
+      StorageService.saveSettings({ notificationsEnabled: false });
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setTestNotifMessage('Wysyłanie powiadomienia...');
+    const ok = await NotificationService.sendTestNotification();
+    setNotifPermission(NotificationService.getPermission());
+    if (ok) {
+      setTestNotifMessage('Powiadomienie zostało wysłane na Twój telefon!');
+    } else {
+      setTestNotifMessage('Nie udało się wysłać powiadomienia. Upewnij się, że zezwolono na powiadomienia w przeglądarce.');
+    }
+    setTimeout(() => setTestNotifMessage(null), 4000);
   };
 
   const handleTestConnection = async () => {
@@ -85,18 +128,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ onRefresh }) => {
     onRefresh();
   };
 
-  const nginxSnippet = `# Wklej to do /etc/nginx/sites-available/karty.conf
-# Wewnątrz bloku server { ... }:
-
-# 1. Definiujemy ominięcie autoryzacji dla stałego tokenu z aplikacji:
-map $http_x_app_token $auth_gate {
-    default "Tereny - Podaj haslo";
-    "${serverToken || 'TWOJ_STALY_TAJNY_TOKEN'}" "off";
+  const nginxSnippet = `# Wklej to do /etc/nginx/sites-available/nextcloud.conf
+# W sekcji WYJATKI Z BRAMKI TOTP (okolo linii 102):
+map "$http_x_app_token|$request_uri" $totp_bypass_karty {
+    default 0;
+    "~^${serverToken || 'TWOJ_WYGENEROWANY_TOKEN'}\\|/karty/" 1;
 }
 
-# 2. Zamiast sztywnego 'auth_basic "Tereny";' użyj zmiennej:
-auth_basic $auth_gate;
-auth_basic_user_file /etc/nginx/.htpasswd-karty;
+# Wewnatrz location = /auth/check.php:
+if ($totp_bypass_karty) { return 204; }
 `;
 
   const copyToClipboard = () => {
@@ -107,7 +147,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
 
   return (
     <div className="space-y-4">
-      {/* 1. Android Installation Status */}
+      {/* 1. Android Installation Status & QR Code */}
       <div className="rounded-2xl border border-blue-200 bg-linear-to-br from-blue-50 to-indigo-50/50 p-5 shadow-xs">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -115,7 +155,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
               <Smartphone className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Aplikacja na telefon Android</h3>
+              <h3 className="text-sm font-bold text-slate-900">Aplikacja na telefon: Karty Terenów</h3>
               <p className="text-xs text-slate-600 mt-0.5">
                 {isInstalled 
                   ? 'Aplikacja zainstalowana w pamięci telefonu w trybie autonomicznym (PWA).'
@@ -127,6 +167,24 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <PWAInstallButton />
+          <a
+            href="/KartyTerenow.apk"
+            download="KartyTerenow.apk"
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold shadow-xs active:scale-95 transition"
+          >
+            <Download className="w-4 h-4" />
+            <span>Pobierz plik KartyTerenow.apk</span>
+          </a>
+        </div>
+
+        {/* ADB USB installation instruction */}
+        <div className="mt-3 p-3 rounded-xl bg-slate-900 text-slate-200 text-xs">
+          <span className="text-slate-400 text-[11px] block mb-1">
+            Instalacja na podłączonym telefonie przez wiersz poleceń (ADB):
+          </span>
+          <code className="text-emerald-400 font-mono text-[11px] block select-all">
+            adb install KartyTerenow.apk
+          </code>
         </div>
 
         {/* Quick QR code scanner for connected phone */}
@@ -145,7 +203,92 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
         )}
       </div>
 
-      {/* 2. Server Configuration */}
+      {/* 2. WEEKLY PUSH NOTIFICATIONS FOR OVERDUE TERRITORIES */}
+      <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-xs space-y-3.5">
+        <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-amber-500 p-2 text-white shadow-xs">
+              <BellRing className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Cotygodniowe powiadomienia Push</h3>
+              <p className="text-xs text-slate-500">Przypomnienia o terenach z dawną datą opracowania</p>
+            </div>
+          </div>
+
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={handleToggleNotifications}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Aplikacja raz w tygodniu wyśle powiadomienie push na Twój telefon z listą kart, które nie były opracowywane dłużej niż określony czas.
+        </p>
+
+        {/* Current status chip */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3 text-xs">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-400" />
+            <span className="text-slate-600">
+              Wykryto przeterminowanych: <strong className="text-amber-800">{overdueCount} terenów</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500 text-[11px]">Uprawnienia w telefonie:</span>
+            {notifPermission === 'granted' ? (
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">Zezwolono</span>
+            ) : notifPermission === 'denied' ? (
+              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">Zablokowane</span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">Wymaga zgody</span>
+            )}
+          </div>
+        </div>
+
+        {/* Threshold selection */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Uznaj teren za wymagający opracowania po:
+          </label>
+          <select
+            value={thresholdMonths}
+            onChange={e => setThresholdMonths(Number(e.target.value))}
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
+          >
+            <option value={3}>3 miesiącach bez opracowania</option>
+            <option value={4}>4 miesiącach (standard według druku S-13)</option>
+            <option value={6}>6 miesiącach (pół roku)</option>
+            <option value={12}>12 miesiącach (1 rok)</option>
+          </select>
+        </div>
+
+        {/* Test Notification Button */}
+        <div className="pt-1 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSendTestNotification}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 active:scale-95"
+          >
+            <Bell className="w-3.5 h-3.5 text-amber-600" />
+            <span>Wyślij powiadomienie testowe na telefon</span>
+          </button>
+        </div>
+
+        {testNotifMessage && (
+          <p className="text-xs text-blue-700 font-medium bg-blue-50 p-2.5 rounded-xl border border-blue-200">
+            {testNotifMessage}
+          </p>
+        )}
+      </div>
+
+      {/* 3. Server Configuration */}
       <form onSubmit={handleSaveSettings} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
           <div className="rounded-xl bg-slate-900 p-2 text-white">
@@ -154,7 +297,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
           <div>
             <h3 className="text-sm font-bold text-slate-900">Adres serwera hostingowego</h3>
             <p className="text-xs text-slate-500">
-              Główny adres Twojej instancji Karty Terenu
+              Główny adres Twojej instancji Karty Terenów
             </p>
           </div>
         </div>
@@ -168,7 +311,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
             required
             value={serverUrl}
             onChange={e => setServerUrl(e.target.value)}
-            placeholder="https://karty.twojadomena.pl"
+            placeholder="https://amache-tech.uk/karty"
             className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -233,11 +376,11 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
                   type="text"
                   value={serverToken}
                   onChange={e => setServerToken(e.target.value)}
-                  placeholder="Wpisz dowolny tajny ciąg, np. MojKluczMobile2026!#"
+                  placeholder="Wpisz token wygenerowany przez openssl rand -hex 24"
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono focus:border-blue-500"
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">
-                  Aplikacja będzie wysyłać ten token w nagłówku <code>{customHeader}</code> oraz <code>Authorization: Bearer</code>.
+                  Aplikacja wysyła ten token w nagłówku <code>X-App-Token</code> omijającym bramkę TOTP.
                 </span>
               </div>
 
@@ -249,7 +392,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
                   className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold hover:underline"
                 >
                   <Code className="w-3.5 h-3.5" />
-                  <span>{showNginxGuide ? 'Ukryj konfigurację Nginx' : 'Pokaż 4 linijki konfiguracji dla Nginx'}</span>
+                  <span>{showNginxGuide ? 'Ukryj fragment Nginx' : 'Pokaż fragment do wklejenia w nextcloud.conf'}</span>
                   {showNginxGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
 
@@ -329,7 +472,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
           )}
         </div>
 
-        {/* 3. Sync & Local-First Mode */}
+        {/* 4. Sync & Local-First Mode */}
         <div className="pt-4 border-t border-slate-100">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -371,7 +514,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
           )}
         </div>
 
-        {/* 4. Geography and Map Defaults */}
+        {/* 5. Geography and Map Defaults */}
         <div className="pt-4 border-t border-slate-100 space-y-3">
           <h4 className="text-xs font-bold text-slate-900">Podkłady map i geokoder</h4>
 
@@ -423,7 +566,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
           type="submit"
           className="w-full rounded-xl bg-slate-900 py-3 text-xs font-bold text-white shadow-md hover:bg-slate-800 active:scale-98 transition"
         >
-          Zapisz ustawienia i autoryzację na telefonie
+          Zapisz ustawienia i powiadomienia na telefonie
         </button>
       </form>
 
@@ -431,7 +574,7 @@ auth_basic_user_file /etc/nginx/.htpasswd-karty;
       <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600 flex items-start gap-2.5">
         <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
         <p className="leading-relaxed">
-          Gdy skonfigurujesz token w Nginx lub podasz dane Basic Auth, telefon łączy się bezpośrednio w tle, bez konieczności ponownego logowania czy otwierania przeglądarki.
+          Aplikacja <strong>Karty Terenów</strong> działa jako autonomiczny klient offline. Cotygodniowe powiadomienia pomagają pamiętać o rewirach, które dawno nie były odwiedzane.
         </p>
       </div>
     </div>

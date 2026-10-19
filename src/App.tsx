@@ -7,9 +7,10 @@ import { NzTab } from './components/NzTab';
 import { ImportExportTab } from './components/ImportExportTab';
 import { SettingsTab } from './components/SettingsTab';
 import { PWAInstallButton } from './components/PWAInstallButton';
+import { NotificationService } from './services/notificationService';
 import { 
   Map, Users, ShieldAlert, FileSpreadsheet, Settings, 
-  Wifi, WifiOff, RefreshCw, Smartphone
+  Wifi, WifiOff, RefreshCw, Smartphone, Bell
 } from 'lucide-react';
 
 export function App() {
@@ -25,6 +26,9 @@ export function App() {
 
   useEffect(() => {
     refreshData();
+
+    // Check weekly push notifications for overdue territories
+    NotificationService.checkAndSendWeeklyNotification().catch(() => {});
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -50,7 +54,7 @@ export function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold tracking-tight">Karty Terenu</h1>
+                <h1 className="text-sm font-bold tracking-tight">Karty Terenów</h1>
                 <span className="rounded-md bg-blue-900/60 px-1.5 py-0.5 text-[10px] font-semibold text-blue-200 border border-blue-700/50">
                   Android Mobile
                 </span>

@@ -64,6 +64,9 @@ export interface AppSettings {
   autoSync: boolean;
   lastSync: string | null;
   storageMode: 'local_first' | 'online_only';
+  notificationsEnabled: boolean;
+  notificationThresholdMonths: number;
+  lastNotificationDate: string | null;
 }
 
 export interface SyncQueueItem {

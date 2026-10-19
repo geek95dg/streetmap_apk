@@ -24,6 +24,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoSync: false,
   lastSync: null,
   storageMode: 'local_first',
+  notificationsEnabled: true,
+  notificationThresholdMonths: 4,
+  lastNotificationDate: null,
 };
 
 const INITIAL_TERRITORIES: Territory[] = [
